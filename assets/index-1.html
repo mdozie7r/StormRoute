@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b123a">
+<title>GuessUp</title>
+<style>
+  :root{
+    --bg1:#2b1065; --bg2:#7c2d92; --ink:#fff; --card:#ffffff;
+    --got:#17b978; --got2:#0f8f5d; --pass:#f6a623; --pass2:#d9850a;
+    --accent:#ffd54a; --muted:rgba(255,255,255,.72);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    color:var(--ink); background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    overflow:hidden; user-select:none; -webkit-user-select:none; touch-action:none;
+    position:fixed; inset:0;
+  }
+  .screen{position:absolute; inset:0; display:none; flex-direction:column; align-items:center;
+    padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom)); overflow:auto}
+  .screen.on{display:flex}
+  .brand{font-weight:900; letter-spacing:-1px; line-height:.92; text-align:center}
+  .logo{font-size:clamp(44px,13vw,86px); margin-top:6vh}
+  .logo b{color:var(--accent)}
+  .tag{color:var(--muted); font-size:clamp(14px,3.6vw,18px); margin-top:10px; text-align:center; font-weight:600}
+
+  .btn{border:0; border-radius:18px; font-weight:800; cursor:pointer; color:#2b1065;
+    background:var(--accent); font-size:clamp(17px,4.6vw,21px); padding:16px 22px; width:100%;
+    box-shadow:0 6px 0 rgba(0,0,0,.18); transition:transform .05s, box-shadow .05s}
+  .btn:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(0,0,0,.18)}
+  .btn.ghost{background:rgba(255,255,255,.14); color:#fff; box-shadow:none; border:1.5px solid rgba(255,255,255,.28)}
+  .btn.sm{font-size:15px; padding:11px 14px; width:auto; border-radius:13px}
+
+  .wrap{width:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+  .spacer{flex:1}
+
+  /* home */
+  .homebtns{width:100%; max-width:520px; display:flex; flex-direction:column; gap:12px; margin-bottom:8px}
+
+  /* deck grid */
+  h2{font-size:clamp(22px,6vw,30px); font-weight:900; margin:8px 0 2px; text-align:center}
+  .sub{color:var(--muted); font-weight:600; text-align:center; margin-bottom:6px; font-size:14px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:520px; margin:0 auto}
+  .deck{border:0; cursor:pointer; color:#fff; border-radius:20px; padding:18px 14px; text-align:left;
+    min-height:104px; display:flex; flex-direction:column; justify-content:space-between;
+    box-shadow:0 7px 18px rgba(0,0,0,.22); position:relative; overflow:hidden}
+  .deck .emo{font-size:30px}
+  .deck .nm{font-weight:900; font-size:17px; line-height:1.08}
+  .deck .best{position:absolute; top:10px; right:12px; font-size:11px; font-weight:800; opacity:.9}
+
+  /* play */
+  #play{justify-content:center; padding:0}
+  .flash{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:24px}
+  .word{font-size:clamp(40px,12vw,96px); font-weight:900; line-height:1; letter-spacing:-1px}
+  .state{font-size:clamp(26px,8vw,54px); font-weight:900; text-transform:uppercase; letter-spacing:2px}
+  #timer{position:absolute; top:max(14px,env(safe-area-inset-top)); left:0; right:0; text-align:center;
+    font-size:30px; font-weight:900; opacity:.95}
+  #scoreMini{position:absolute; top:max(14px,env(safe-area-inset-top)); right:18px; font-size:16px; font-weight:800; opacity:.9}
+  .hint{position:absolute; bottom:max(16px,env(safe-area-inset-bottom)); left:0; right:0; text-align:center;
+    color:rgba(255,255,255,.85); font-size:13px; font-weight:600; padding:0 20px}
+  .tapzone{position:absolute; top:0; bottom:0; width:50%; z-index:5}
+  #tapPass{left:0} #tapGot{right:0}
+
+  /* countdown */
+  #count{justify-content:center}
+  .big{font-size:clamp(90px,34vw,220px); font-weight:900; line-height:1}
+  .ready{font-size:clamp(20px,5vw,26px); font-weight:800; color:var(--muted); text-align:center}
+
+  /* results */
+  .score{font-size:clamp(70px,22vw,140px); font-weight:900; color:var(--accent); line-height:1}
+  .reslist{width:100%; max-width:520px; margin:6px auto; background:rgba(0,0,0,.18); border-radius:16px; overflow:hidden}
+  .reslist .row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-weight:700; font-size:15px;
+    border-bottom:1px solid rgba(255,255,255,.08)}
+  .reslist .row:last-child{border-bottom:0}
+  .tick{font-size:17px}
+  .ok{color:var(--got)} .no{color:var(--pass)}
+
+  .rowbtns{display:flex; gap:12px; width:100%; max-width:520px; margin:0 auto}
+  .rowbtns .btn{flex:1}
+
+  .mut{color:var(--muted); font-size:13px; text-align:center; font-weight:600}
+  .toprow{display:flex; align-items:center; justify-content:space-between; width:100%; max-width:520px; margin:0 auto 4px}
+  .set{display:flex; align-items:center; justify-content:space-between; width:100%; max-width:520px; margin:0 auto;
+    background:rgba(0,0,0,.16); padding:14px 16px; border-radius:14px; font-weight:700}
+  .seg{display:flex; gap:6px}
+  .seg button{border:0; border-radius:10px; padding:8px 12px; font-weight:800; cursor:pointer;
+    background:rgba(255,255,255,.14); color:#fff}
+  .seg button.on{background:var(--accent); color:#2b1065}
+  .rotate{position:fixed; inset:0; display:none; align-items:center; justify-content:center; text-align:center;
+    background:#1b123a; z-index:50; padding:30px; flex-direction:column; gap:14px}
+  .rotate .ico{font-size:60px; animation:rot 2s ease-in-out infinite}
+  @keyframes rot{0%,40%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<section id="home" class="screen on">
+  <div class="brand logo">Guess<b>Up</b></div>
+  <div class="tag">Put it on your forehead.<br>Tilt down when you get it, up to pass.</div>
+  <div class="spacer"></div>
+  <div class="homebtns">
+    <button class="btn" onclick="go('decks')">Play</button>
+    <button class="btn ghost" onclick="go('how')">How to play</button>
+    <button class="btn ghost" onclick="go('settings')">Settings</button>
+  </div>
+  <div class="mut">An original party game • works offline</div>
+</section>
+
+<!-- HOW -->
+<section id="how" class="screen">
+  <div class="toprow"><button class="btn ghost sm" onclick="go('home')">‹ Back</button><div style="width:60px"></div></div>
+  <h2>How to play</h2>
+  <div class="wrap" style="gap:16px; margin-top:8px">
+    <div class="set" style="display:block"><b>1 — Pick a deck.</b><br><span class="mut" style="text-align:left; display:block; margin-top:4px">Choose a category and how long the round lasts.</span></div>
+    <div class="set" style="display:block"><b>2 — Phone on your forehead.</b><br><span class="mut" style="text-align:left; display:block; margin-top:4px">Hold it in landscape, screen facing your friends.</span></div>
+    <div class="set" style="display:block"><b>3 — They give clues.</b><br><span class="mut" style="text-align:left; display:block; margin-top:4px">Guess the word. <b>Tilt the phone DOWN</b> when you get it. <b>Tilt UP</b> to skip.</span></div>
+    <div class="set" style="display:block"><b>No tilt sensor?</b><br><span class="mut" style="text-align:left; display:block; margin-top:4px">Tap the <b>right half</b> of the screen for "got it", the <b>left half</b> to pass.</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="homebtns"><button class="btn" onclick="go('decks')">Let's play</button></div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="screen">
+  <div class="toprow"><button class="btn ghost sm" onclick="go('home')">‹ Back</button><div style="width:60px"></div></div>
+  <h2>Settings</h2>
+  <div class="wrap" style="gap:12px; margin-top:8px">
+    <div class="set"><span>Round length</span>
+      <div class="seg" id="segLen">
+        <button data-v="30">30s</button><button data-v="60">60s</button><button data-v="90">90s</button>
+      </div></div>
+    <div class="set"><span>Sound</span>
+      <div class="seg" id="segSnd"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+    <div class="set"><span>Vibration</span>
+      <div class="seg" id="segVib"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+    <div class="set"><span>Tilt controls</span>
+      <div class="seg" id="segTilt"><button data-v="1">On</button><button data-v="0">Tap only</button></div></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="mut">Scores and settings are saved on this device only.</div>
+</section>
+
+<!-- DECKS -->
+<section id="decks" class="screen">
+  <div class="toprow"><button class="btn ghost sm" onclick="go('home')">‹ Back</button>
+    <button class="btn ghost sm" onclick="go('settings')">⚙︎</button></div>
+  <h2>Pick a deck</h2>
+  <div class="sub" id="lenNote">Round: 60s</div>
+  <div class="grid" id="deckGrid"></div>
+  <div style="height:16px"></div>
+</section>
+
+<!-- COUNTDOWN -->
+<section id="count" class="screen">
+  <div class="ready" id="readyDeck">Get ready…</div>
+  <div class="big" id="countNum">3</div>
+  <div class="ready">Phone on your forehead!</div>
+</section>
+
+<!-- PLAY -->
+<section id="play" class="screen">
+  <div id="timer">60</div>
+  <div id="scoreMini">0</div>
+  <div class="tapzone" id="tapPass"></div>
+  <div class="tapzone" id="tapGot"></div>
+  <div class="flash" id="flash">
+    <div class="word" id="word">—</div>
+  </div>
+  <div class="hint" id="playHint">Tilt DOWN = got it &nbsp;•&nbsp; Tilt UP = pass</div>
+</section>
+
+<!-- RESULTS -->
+<section id="results" class="screen">
+  <div style="height:3vh"></div>
+  <div class="mut" id="resDeck">Animals</div>
+  <div class="score" id="resScore">0</div>
+  <div class="mut" id="resBest"></div>
+  <div class="reslist" id="resList"></div>
+  <div class="spacer"></div>
+  <div class="rowbtns">
+    <button class="btn ghost" onclick="go('decks')">New deck</button>
+    <button class="btn" onclick="startRound(currentDeck)">Play again</button>
+  </div>
+  <div style="height:10px"></div>
+</section>
+
+<!-- rotate nudge -->
+<div class="rotate" id="rotate"><div class="ico">📱</div><div style="font-weight:800; font-size:20px">Turn your phone sideways</div><div class="mut">GuessUp plays best in landscape.</div></div>
+
+<script>
+"use strict";
+/* ---------- original word decks (no third-party IP) ---------- */
+var DECKS = [
+  { id:"animals", name:"Animals", emo:"🦁", c1:"#ff8a5c", c2:"#ef5d8a", words:[
+    "Elephant","Penguin","Kangaroo","Octopus","Giraffe","Hedgehog","Flamingo","Platypus","Dolphin","Chameleon",
+    "Raccoon","Peacock","Sloth","Jellyfish","Walrus","Cheetah","Koala","Narwhal","Hamster","Tortoise",
+    "Seahorse","Bumblebee","Porcupine","Meerkat","Pelican","Armadillo","Otter","Lemur","Gorilla","Toucan",
+    "Rhinoceros","Chinchilla","Wombat","Scorpion","Puffin","Ostrich","Beaver","Hippopotamus","Squid","Ferret"]},
+  { id:"actions", name:"Act It Out", emo:"🤸", c1:"#7c5cff", c2:"#4a9bff", words:[
+    "Juggling","Tiptoeing","Sneezing","Swimming","Yawning","Skateboarding","Tightrope walking","Flossing",
+    "Arm wrestling","Moonwalking","Shivering","Fishing","Bowling","Conducting an orchestra","Milking a cow",
+    "Blowing bubbles","Shadow boxing","Hula hooping","Rowing a boat","Climbing a ladder","Tying your shoes",
+    "Chopping wood","Painting a wall","Cartwheel","Sleepwalking","Playing air guitar","Stretching","Marching",
+    "Whistling","Tickling","Limbo","Sumo wrestling","Parallel parking","Thumb wrestling","Carrying groceries"]},
+  { id:"food", name:"Food & Drink", emo:"🍕", c1:"#ffb347", c2:"#ff7676", words:[
+    "Pizza","Spaghetti","Avocado","Pancakes","Sushi","Popcorn","Watermelon","Taco","Smoothie","Cheeseburger",
+    "Pretzel","Cupcake","Pickle","Nachos","Waffle","Dumpling","Omelette","Marshmallow","Burrito","Lasagna",
+    "Milkshake","Croissant","Meatball","Cotton candy","Bagel","Guacamole","Lemonade","Doughnut","Ramen",
+    "Hot dog","Cheesecake","Peanut butter","Fried rice","Ice cream cone","Gingerbread","Fruit salad","Mango"]},
+  { id:"movies", name:"Movie Night", emo:"🎬", c1:"#5c6bff", c2:"#9b4aff", words:[
+    "Superhero","Spaceship","Car chase","Plot twist","Villain","Sidekick","Zombie","Robot","Haunted house",
+    "Treasure map","Secret agent","Time machine","Dinosaur","Explosion","Slow motion","Love story","Sequel",
+    "Pirate ship","Underdog","Getaway car","Jump scare","Special effects","Hero landing","Bank heist",
+    "Alien invasion","Wizard","Cliffhanger","Road trip","Monster","Detective","Showdown","Flashback","Cameo"]},
+  { id:"sports", name:"Sports", emo:"⚽", c1:"#17b978", c2:"#0bb3c4", words:[
+    "Basketball","Soccer","Tennis","Surfing","Boxing","Golf","Bowling","Skiing","Volleyball","Baseball",
+    "Ice hockey","Rock climbing","Gymnastics","Archery","Cycling","Figure skating","Weightlifting","Karate",
+    "Table tennis","Skateboarding","Diving","Fencing","Badminton","Hurdles","Dodgeball","Wrestling","Rowing",
+    "Snowboarding","Pole vault","Water polo","Curling","Rugby","Cricket","Marathon","Kayaking"]},
+  { id:"around", name:"Around the House", emo:"🛋️", c1:"#ff6fae", c2:"#ff9a5c", words:[
+    "Toaster","Umbrella","Vacuum cleaner","Pillow","Doorbell","Mousetrap","Blender","Hairdryer","Candle",
+    "Remote control","Alarm clock","Frying pan","Watering can","Stapler","Flashlight","Laundry basket",
+    "Microwave","Mop","Teapot","Light switch","Coat hanger","Dish soap","Ironing board","Ceiling fan",
+    "Shower curtain","Oven mitt","Spatula","Doorknob","Nightstand","Bookshelf","Toothbrush","Welcome mat"]},
+  { id:"music", name:"Music & Dance", emo:"🎸", c1:"#c04cff", c2:"#5c6bff", words:[
+    "Guitar","Drummer","Karaoke","Breakdance","Saxophone","Choir","Air guitar","Trumpet","Opera singer",
+    "Beatboxing","Tambourine","Conductor","Ballet","Tap dance","Violin","Headphones","Jukebox","Disco ball",
+    "Rock band","Accordion","Marching band","Harmonica","Encore","Backup dancer","DJ","Bagpipes","Xylophone",
+    "Line dancing","Microphone","Mosh pit","Ukulele","Lullaby","Drum solo","Salsa dancing"]},
+  { id:"travel", name:"Around the World", emo:"🌍", c1:"#2bc0e4", c2:"#1a9bd7", words:[
+    "Eiffel Tower","Pyramid","Volcano","Rainforest","Desert","Lighthouse","Glacier","Waterfall","Island",
+    "Mountain peak","Subway","Hot air balloon","Suitcase","Passport","Camel ride","Safari","Ski lodge",
+    "Coral reef","Canyon","Windmill","Castle","Hammock","Cruise ship","Tent","Postcard","Sand dune",
+    "Street market","Ferry","Cable car","Snow-capped mountain","Beach resort","Souvenir","Backpacker"]},
+  { id:"nostalgia", name:"Throwback", emo:"📼", c1:"#ff7eb3", c2:"#8b5cf6", words:[
+    "Cassette tape","Floppy disk","Dial-up internet","Pager","Walkman","Lava lamp","Mixtape","VHS",
+    "Rollerblades","Beeper","Payphone","Boombox","Slap bracelet","Fanny pack","Yo-yo","Pet rock","Jukebox",
+    "Typewriter","Record player","Polaroid camera","Phone booth","Rotary phone","Tube TV","Arcade",
+    "Troll doll","Game cartridge","Pinball","Overhead projector","Chalkboard","Film reel","View-Master"]},
+  { id:"jobs", name:"Jobs", emo:"👩‍🚀", c1:"#f6a623", c2:"#ef5d8a", words:[
+    "Astronaut","Firefighter","Chef","Magician","Pilot","Dentist","Lifeguard","Scientist","Librarian",
+    "Plumber","Mail carrier","Veterinarian","Construction worker","Teacher","Clown","Barber","Farmer",
+    "Judge","Photographer","Tour guide","Mechanic","Nurse","Referee","Electrician","Painter","Beekeeper",
+    "Lumberjack","Detective","Waiter","Zookeeper","Surgeon","Carpenter","Fisherman","Flight attendant"]},
+  { id:"nature", name:"Nature", emo:"🌦️", c1:"#43c6ac", c2:"#1a9bd7", words:[
+    "Thunderstorm","Rainbow","Tornado","Snowflake","Lightning","Earthquake","Sunset","Full moon","Tide pool",
+    "Wildfire","Blizzard","Meteor shower","Fog","Avalanche","Tidal wave","Hurricane","Dewdrop","Northern lights",
+    "Quicksand","Geyser","Eclipse","Mudslide","Hailstorm","Shooting star","Heat wave","Whirlpool","Sandstorm",
+    "Waterspout","Icicle","Cloudburst","Drizzle","Riverbank","Cave","Coral","Seaweed"]},
+  { id:"holiday", name:"Celebrations", emo:"🎉", c1:"#ff5c8a", c2:"#ffb347", words:[
+    "Birthday cake","Fireworks","Piñata","Confetti","Parade","Wedding","Costume party","Gift wrap","Balloon arch",
+    "Sparkler","Toast (cheers)","Carnival","Jack-o'-lantern","Snowman","Easter egg hunt","Graduation cap",
+    "Party hat","Streamers","Candles","New Year's countdown","Scavenger hunt","Bonfire","Masquerade","Ribbon",
+    "Marching parade","Trophy ceremony","Picnic","Campfire","Treasure hunt","Dance party","Surprise party"]}
+];
+
+/* ---------- state + storage ---------- */
+var S = load("gu.settings", { len:60, snd:1, vib:1, tilt:1 });
+var BEST = load("gu.best", {});
+function load(k,d){ try{ var v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+var screens = ["home","how","settings","decks","count","play","results"];
+function go(id){
+  screens.forEach(function(s){ document.getElementById(s).classList.toggle("on", s===id); });
+  if(id==="decks"){ renderDecks(); document.getElementById("lenNote").textContent = "Round: "+S.len+"s"; }
+  if(id==="settings"){ syncSettings(); }
+  if(id!=="play" && id!=="count"){ stopTilt(); }
+}
+
+function renderDecks(){
+  var g = document.getElementById("deckGrid"); g.innerHTML="";
+  DECKS.forEach(function(d){
+    var b = document.createElement("button");
+    b.className="deck";
+    b.style.background = "linear-gradient(145deg,"+d.c1+","+d.c2+")";
+    var best = BEST[d.id] ? '<span class="best">★ '+BEST[d.id]+'</span>' : '';
+    b.innerHTML = best + '<div class="emo">'+d.emo+'</div><div class="nm">'+d.name+'</div>';
+    b.onclick = function(){ startRound(d); };
+    g.appendChild(b);
+  });
+}
+
+/* ---------- settings UI ---------- */
+function seg(id, val, cb){
+  var box = document.getElementById(id);
+  box.querySelectorAll("button").forEach(function(btn){
+    btn.classList.toggle("on", String(btn.dataset.v)===String(val));
+    btn.onclick = function(){ cb(btn.dataset.v); syncSettings(); save("gu.settings", S); };
+  });
+}
+function syncSettings(){
+  seg("segLen", S.len, function(v){ S.len=+v; });
+  seg("segSnd", S.snd, function(v){ S.snd=+v; });
+  seg("segVib", S.vib, function(v){ S.vib=+v; });
+  seg("segTilt", S.tilt, function(v){ S.tilt=+v; });
+}
+
+/* ---------- sound (WebAudio beeps, no files) ---------- */
+var actx=null;
+function beep(freq, dur, type){
+  if(!S.snd) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"sine"; o.frequency.value=freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(.001, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.3, actx.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.001, actx.currentTime+dur);
+    o.start(); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+function buzz(ms){ if(S.vib && navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
+
+/* ---------- gameplay ---------- */
+var currentDeck=null, queue=[], idx=0, score=0, results=[], timeLeft=0, tHandle=null, locked=false, roundActive=false;
+
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+function startRound(deck){
+  currentDeck=deck;
+  queue=shuffle(deck.words); idx=0; score=0; results=[];
+  timeLeft=S.len;
+  document.getElementById("readyDeck").textContent=deck.name;
+  go("count");
+  // unlock audio on this user gesture
+  if(S.snd){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume(); }catch(e){} }
+  var n=3;
+  document.getElementById("countNum").textContent=n;
+  beep(440,.12);
+  var ci=setInterval(function(){
+    n--;
+    if(n<=0){ clearInterval(ci); beginPlay(); return; }
+    document.getElementById("countNum").textContent=n; beep(440,.12);
+  },800);
+}
+
+function beginPlay(){
+  go("play");
+  roundActive=true; locked=false;
+  document.getElementById("scoreMini").textContent="0";
+  document.getElementById("timer").textContent=timeLeft;
+  document.getElementById("playHint").style.display = S.tilt ? "block":"none";
+  showWord();
+  beep(660,.15);
+  tHandle=setInterval(tick,1000);
+  if(S.tilt) startTilt();
+}
+
+function tick(){
+  timeLeft--;
+  document.getElementById("timer").textContent=Math.max(0,timeLeft);
+  if(timeLeft<=5 && timeLeft>0) beep(880,.08);
+  if(timeLeft<=0) endRound();
+}
+
+function showWord(){
+  if(idx>=queue.length){ queue=shuffle(currentDeck.words); idx=0; } // loop if deck exhausted
+  document.getElementById("word").textContent=queue[idx];
+  document.getElementById("flash").style.background="transparent";
+  document.getElementById("word").style.display="block";
+  var st=document.getElementById("flash").querySelector(".state"); if(st) st.remove();
+}
+
+function mark(got){
+  if(locked || !roundActive) return;
+  locked=true;
+  var w=queue[idx];
+  results.push({ w:w, got:got });
+  if(got){ score++; document.getElementById("scoreMini").textContent=score; }
+  var flash=document.getElementById("flash");
+  flash.style.background = got ? "linear-gradient(160deg,var(--got),var(--got2))" : "linear-gradient(160deg,var(--pass),var(--pass2))";
+  document.getElementById("word").style.display="none";
+  var st=document.createElement("div"); st.className="state"; st.textContent = got?"Got it!":"Pass";
+  flash.appendChild(st);
+  beep(got?720:300,.16, got?"sine":"sawtooth"); buzz(got?40:[20,40,20]);
+  idx++;
+  setTimeout(function(){
+    locked=false;
+    if(roundActive){ showWord(); }
+  }, 550);
+}
+
+function endRound(){
+  roundActive=false;
+  clearInterval(tHandle); stopTilt();
+  beep(520,.5,"triangle");
+  var best = BEST[currentDeck.id]||0;
+  if(score>best){ BEST[currentDeck.id]=score; save("gu.best",BEST); best=score; document.getElementById("resBest").textContent="New best! 🎉"; }
+  else { document.getElementById("resBest").textContent="Best: "+best; }
+  document.getElementById("resDeck").textContent=currentDeck.name;
+  document.getElementById("resScore").textContent=score;
+  var list=document.getElementById("resList"); list.innerHTML="";
+  results.forEach(function(r){
+    var row=document.createElement("div"); row.className="row";
+    row.innerHTML='<span class="tick '+(r.got?"ok":"no")+'">'+(r.got?"✓":"✗")+'</span>'+
+                  '<span style="flex:1">'+r.w+'</span>';
+    list.appendChild(row);
+  });
+  if(!results.length){ list.innerHTML='<div class="row" style="justify-content:center; color:var(--muted)">No cards this round</div>'; }
+  go("results");
+}
+
+/* ---------- tap controls ---------- */
+document.getElementById("tapGot").addEventListener("click", function(){ if(roundActive) mark(true); });
+document.getElementById("tapPass").addEventListener("click", function(){ if(roundActive) mark(false); });
+
+/* ---------- tilt controls (DeviceOrientation) ---------- */
+var tiltOn=false, tiltReady=true, tiltHandler=null;
+// When phone is on forehead in landscape, gamma (front/back tilt) swings; we use beta/gamma combo.
+// Neutral ~ vertical-ish; tilt DOWN (chin to chest) vs UP (look at sky).
+function orient(e){
+  // Use gamma primarily in landscape; fall back to beta.
+  var g = e.gamma, b = e.beta;
+  if(g==null && b==null) return;
+  // In landscape, forehead-held, the dominant rotation is around the long axis -> gamma near ±90 at neutral.
+  // We track beta for down/up flips which is most reliable across orientations when held sideways.
+  var v = b; // beta: 0 flat, +90 upright, -90 upside down
+  if(v==null) return;
+  var DOWN = 20, UP = 150, NEUTRAL_LO=50, NEUTRAL_HI=120;
+  if(tiltReady){
+    if(v < DOWN || (v>-20 && v<DOWN)){ tiltReady=false; mark(true); }
+    else if(v > UP){ tiltReady=false; mark(false); }
+  } else {
+    if(v>NEUTRAL_LO && v<NEUTRAL_HI){ tiltReady=true; } // returned to neutral
+  }
+}
+function startTilt(){
+  if(tiltOn) return;
+  function attach(){
+    tiltHandler=orient;
+    window.addEventListener("deviceorientation", tiltHandler, true);
+    tiltOn=true; tiltReady=true;
+  }
+  if(typeof DeviceOrientationEvent!=="undefined" && typeof DeviceOrientationEvent.requestPermission==="function"){
+    DeviceOrientationEvent.requestPermission().then(function(p){ if(p==="granted") attach(); }).catch(function(){});
+  } else { attach(); }
+}
+function stopTilt(){ if(tiltHandler){ window.removeEventListener("deviceorientation", tiltHandler, true); } tiltOn=false; }
+
+/* ---------- orientation nudge ---------- */
+function checkOrient(){
+  var playing = document.getElementById("play").classList.contains("on") || document.getElementById("count").classList.contains("on");
+  var portrait = window.matchMedia("(orientation:portrait)").matches;
+  document.getElementById("rotate").style.display = (playing && portrait && window.innerWidth<520) ? "flex":"none";
+}
+window.addEventListener("resize", checkOrient);
+window.addEventListener("orientationchange", checkOrient);
+
+/* ---------- init ---------- */
+syncSettings();
+renderDecks();
+
+/* expose for tests */
+window.__gu = { mark:mark, state:function(){ return {score:score, idx:idx, timeLeft:timeLeft, active:roundActive, results:results, cards:queue.length}; }, decks:DECKS };
+</script>
+</body>
+</html>
